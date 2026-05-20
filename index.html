@@ -38,7 +38,7 @@ canvas {
     color: white;
 }
 
-#gameOver { display: none; }
+#gameOver { display:none; }
 
 button {
     padding: 15px 35px;
@@ -53,24 +53,25 @@ button {
 <body>
 
 <div id="ui">
-    Score: <span id="score">0</span> |
-    High: <span id="high">0</span>
+Score: <span id="score">0</span> |
+High: <span id="high">0</span>
 </div>
 
 <div id="menu">
-    <h1>BALLZ</h1>
-    <button onclick="startGame()">PLAY</button>
+<h1>BALLZ</h1>
+<button onclick="startGame()">PLAY</button>
 </div>
 
 <div id="gameOver">
-    <h1>Game Over</h1>
-    <div id="final"></div>
-    <button onclick="restart()">Restart</button>
+<h1>Game Over</h1>
+<div id="final"></div>
+<button onclick="restart()">Restart</button>
 </div>
 
 <canvas id="c"></canvas>
 
 <script>
+
 const c = document.getElementById("c");
 const x = c.getContext("2d");
 
@@ -81,7 +82,12 @@ function resize(){
 resize();
 addEventListener("resize", resize);
 
-// GAME DATA
+/* ------------------ VIBRATION ------------------ */
+function vibrate(p){
+    if(navigator.vibrate) navigator.vibrate(p);
+}
+
+/* ------------------ GAME DATA ------------------ */
 let balls = [];
 let blocks = [];
 
@@ -98,14 +104,17 @@ let shooterX = c.width/2;
 
 document.getElementById("high").innerText = high;
 
-// CREATE LEVEL
+/* ------------------ LEVEL ------------------ */
 function createRow(){
+
     blocks = [];
 
     let cols = Math.floor(c.width / 70);
 
     for(let i=0;i<cols;i++){
+
         if(Math.random() < 0.7){
+
             blocks.push({
                 x:i*70 + 15,
                 y:100,
@@ -117,8 +126,9 @@ function createRow(){
     }
 }
 
-// START
+/* ------------------ START ------------------ */
 function startGame(){
+
     document.getElementById("menu").style.display = "none";
 
     score = 0;
@@ -132,27 +142,30 @@ function startGame(){
     updateUI();
 }
 
-// RESTART
+/* ------------------ RESTART ------------------ */
 function restart(){
     document.getElementById("gameOver").style.display = "none";
     startGame();
 }
 
-// UPDATE UI
+/* ------------------ UI ------------------ */
 function updateUI(){
     document.getElementById("score").innerText = score;
     document.getElementById("high").innerText = high;
 }
 
-// SHOOT
+/* ------------------ SHOOT ------------------ */
 function shoot(){
+
     if(shooting) return;
 
     shooting = true;
     balls = [];
 
     for(let i=0;i<ballCount;i++){
+
         setTimeout(()=>{
+
             balls.push({
                 x: shooterX,
                 y: c.height-40,
@@ -160,12 +173,14 @@ function shoot(){
                 vy: Math.sin(aim)*speed,
                 back:false
             });
-        }, i*60);
+
+        }, i*50);
     }
 }
 
-// COLLISION (REAL BOUNCE)
+/* ------------------ COLLISION ------------------ */
 function collide(ball, block){
+
     let cx = Math.max(block.x, Math.min(ball.x, block.x+block.w));
     let cy = Math.max(block.y, Math.min(ball.y, block.y+block.h));
 
@@ -175,6 +190,7 @@ function collide(ball, block){
     let dist = Math.sqrt(dx*dx + dy*dy);
 
     if(dist < 6){
+
         let nx = dx/dist;
         let ny = dy/dist;
 
@@ -185,14 +201,20 @@ function collide(ball, block){
 
         block.hp--;
 
+        vibrate(8);
+
         if(block.hp <= 0){
+
+            vibrate([20,30,20]);
+
             blocks.splice(blocks.indexOf(block),1);
         }
     }
 }
 
-// INPUT
+/* ------------------ INPUT ------------------ */
 addEventListener("pointermove", e=>{
+
     if(shooting) return;
 
     aim = Math.atan2(
@@ -205,7 +227,7 @@ addEventListener("pointerdown", ()=>{
     if(!shooting) shoot();
 });
 
-// UPDATE GAME
+/* ------------------ UPDATE ------------------ */
 function update(){
 
     balls.forEach(b=>{
@@ -213,11 +235,9 @@ function update(){
         b.x += b.vx;
         b.y += b.vy;
 
-        // walls
         if(b.x < 0 || b.x > c.width) b.vx *= -1;
         if(b.y < 0) b.vy *= -1;
 
-        // bottom
         if(b.y > c.height-40){
             b.back = true;
         }
@@ -227,7 +247,7 @@ function update(){
         });
     });
 
-    // ROUND DONE
+    /* ---------------- TURN END ---------------- */
     if(shooting && balls.length && balls.every(b=>b.back)){
 
         shooting = false;
@@ -238,13 +258,11 @@ function update(){
 
         level++;
 
-        // ⭐ SCORE ONCE PER TURN (IMPORTANT)
-        score++;
+        /* ⭐ ONLY ONE POINT PER TURN */
+        score += 1;
 
-        // faster each level
         speed += 0.3;
 
-        // more balls
         if(level % 3 === 0){
             ballCount++;
         }
@@ -252,19 +270,20 @@ function update(){
         createRow();
         updateUI();
 
-        // high score
         if(score > high){
             high = score;
             localStorage.setItem("high", high);
         }
+
+        vibrate([30,50,30,80]);
     }
 }
 
-// DRAW
+/* ------------------ DRAW ------------------ */
 function draw(){
+
     x.clearRect(0,0,c.width,c.height);
 
-    // aim line
     if(!shooting){
         x.strokeStyle = "rgba(255,255,255,0.3)";
         x.beginPath();
@@ -276,7 +295,6 @@ function draw(){
         x.stroke();
     }
 
-    // blocks
     blocks.forEach(b=>{
         x.fillStyle = "red";
         x.fillRect(b.x,b.y,b.w,b.h);
@@ -285,7 +303,6 @@ function draw(){
         x.fillText(b.hp,b.x+20,b.y+30);
     });
 
-    // balls
     balls.forEach(b=>{
         x.beginPath();
         x.arc(b.x,b.y,6,0,Math.PI*2);
@@ -293,7 +310,6 @@ function draw(){
         x.fill();
     });
 
-    // shooter
     if(!shooting){
         x.beginPath();
         x.arc(shooterX,c.height-40,6,0,Math.PI*2);
@@ -302,13 +318,14 @@ function draw(){
     }
 }
 
-// LOOP
+/* ------------------ LOOP ------------------ */
 function loop(){
     update();
     draw();
     requestAnimationFrame(loop);
 }
 loop();
+
 </script>
 
 </body>
