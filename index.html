@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,height=device-height,initial-scale=1.0,user-scalable=no">
-<title>Ballz Clone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Ballz Ultimate</title>
 
 <style>
 html,body{
     margin:0;
     overflow:hidden;
     background:#111;
-    font-family:Arial, sans-serif;
+    font-family:Arial;
     touch-action:none;
 }
 
@@ -19,18 +19,27 @@ canvas{
     background:#111;
 }
 
-#topbar{
+#ui{
     position:absolute;
     top:10px;
     width:100%;
     text-align:center;
     color:white;
-    font-size:22px;
-    font-weight:bold;
     z-index:5;
+    font-weight:bold;
 }
 
-#menu{
+#score{
+    font-size:22px;
+}
+
+#high{
+    font-size:16px;
+    opacity:.8;
+}
+
+#menu,
+#gameOver{
     position:absolute;
     inset:0;
     background:rgba(0,0,0,.9);
@@ -42,36 +51,18 @@ canvas{
     z-index:10;
 }
 
-#menu h1{
+#gameOver{
+    display:none;
+}
+
+h1{
     font-size:55px;
     margin:0;
 }
 
-#menu button{
+button{
     margin-top:20px;
     padding:16px 40px;
-    border:none;
-    border-radius:14px;
-    font-size:22px;
-    background:white;
-    color:black;
-}
-
-#gameOver{
-    display:none;
-    position:absolute;
-    inset:0;
-    background:rgba(0,0,0,.9);
-    justify-content:center;
-    align-items:center;
-    flex-direction:column;
-    color:white;
-    z-index:20;
-}
-
-#gameOver button{
-    margin-top:20px;
-    padding:15px 35px;
     border:none;
     border-radius:14px;
     font-size:22px;
@@ -81,8 +72,9 @@ canvas{
 
 <body>
 
-<div id="topbar">
-    Score: <span id="score">0</span>
+<div id="ui">
+    <div id="score">Score: 0</div>
+    <div id="high">High Score: 0</div>
 </div>
 
 <div id="menu">
@@ -92,7 +84,7 @@ canvas{
 
 <div id="gameOver">
     <h1>Game Over</h1>
-    <div id="finalScore"></div>
+    <div id="final"></div>
     <button onclick="restartGame()">Restart</button>
 </div>
 
@@ -109,25 +101,33 @@ function resize(){
 resize();
 addEventListener("resize", resize);
 
+const BALL_RADIUS = 6;
+
+let BALL_SPEED = 9;
+
 let balls = [];
 let blocks = [];
 let pickups = [];
 
 let score = 0;
+let highScore = localStorage.getItem("ballzHigh") || 0;
+
 let level = 1;
-let ballCount = 1;
+let ballCount = 15;
 
 let shooting = false;
 let aiming = false;
 
-let startX = canvas.width/2;
-let shootX = startX;
+let shooterX = canvas.width / 2;
+let aimAngle = -Math.PI / 4;
 
-const BALL_RADIUS = 6;
-const BALL_SPEED = 7;
+document.getElementById("high").innerText =
+    "High Score: " + highScore;
 
 function vibrate(ms){
-    if(navigator.vibrate) navigator.vibrate(ms);
+    if(navigator.vibrate){
+        navigator.vibrate(ms);
+    }
 }
 
 function randomColor(){
@@ -144,7 +144,7 @@ function createRow(){
 
     for(let i=0;i<cols;i++){
 
-        if(Math.random() < 0.65){
+        if(Math.random() < 0.75){
 
             blocks.push({
                 x:i*65+10,
@@ -155,7 +155,7 @@ function createRow(){
                 color:randomColor()
             });
 
-        }else if(Math.random() < 0.18){
+        }else if(Math.random() < 0.25){
 
             pickups.push({
                 x:i*65+37,
@@ -172,19 +172,34 @@ function moveRowsDown(){
     pickups.forEach(p=> p.y += 65);
 
     for(let b of blocks){
-        if(b.y + b.h >= canvas.height - 90){
+
+        if(b.y + b.h >= canvas.height - 80){
+
             gameOver();
         }
     }
 }
 
+function updateUI(){
+
+    document.getElementById("score").innerText =
+        "Score: " + score;
+
+    document.getElementById("high").innerText =
+        "High Score: " + highScore;
+}
+
 function startGame(){
+
     document.getElementById("menu").style.display = "none";
 
     score = 0;
     level = 1;
-    ballCount = 1;
+    ballCount = 15;
 
+    BALL_SPEED = 9;
+
+    balls = [];
     blocks = [];
     pickups = [];
 
@@ -202,14 +217,22 @@ function restartGame(){
 
 function gameOver(){
 
-    document.getElementById("finalScore").innerHTML =
+    if(score > highScore){
+
+        highScore = score;
+
+        localStorage.setItem(
+            "ballzHigh",
+            highScore
+        );
+    }
+
+    updateUI();
+
+    document.getElementById("final").innerHTML =
         "Score: " + score;
 
     document.getElementById("gameOver").style.display = "flex";
-}
-
-function updateUI(){
-    document.getElementById("score").innerText = score;
 }
 
 function shoot(angle){
@@ -223,25 +246,29 @@ function shoot(angle){
         setTimeout(()=>{
 
             balls.push({
-                x:shootX,
-                y:canvas.height-30,
-                vx:Math.cos(angle)*BALL_SPEED,
-                vy:Math.sin(angle)*BALL_SPEED,
+                x:shooterX,
+                y:canvas.height - 30,
+                vx:Math.cos(angle) * BALL_SPEED,
+                vy:Math.sin(angle) * BALL_SPEED,
                 returned:false
             });
 
-        }, i*70);
+        }, i * 40);
 
     }
 }
 
 function reflect(ball, block){
 
-    let closestX = Math.max(block.x,
-        Math.min(ball.x, block.x + block.w));
+    let closestX = Math.max(
+        block.x,
+        Math.min(ball.x, block.x + block.w)
+    );
 
-    let closestY = Math.max(block.y,
-        Math.min(ball.y, block.y + block.h));
+    let closestY = Math.max(
+        block.y,
+        Math.min(ball.y, block.y + block.h)
+    );
 
     let dx = ball.x - closestX;
     let dy = ball.y - closestY;
@@ -260,13 +287,16 @@ function reflect(ball, block){
 
         block.hp--;
 
-        vibrate(10);
+        vibrate(5);
 
         if(block.hp <= 0){
 
             score += 10;
 
-            blocks.splice(blocks.indexOf(block),1);
+            blocks.splice(
+                blocks.indexOf(block),
+                1
+            );
 
             updateUI();
         }
@@ -274,9 +304,7 @@ function reflect(ball, block){
 }
 
 canvas.addEventListener("pointerdown", ()=>{
-
     if(shooting) return;
-
     aiming = true;
 });
 
@@ -284,12 +312,10 @@ canvas.addEventListener("pointermove", e=>{
 
     if(!aiming || shooting) return;
 
-    let dx = e.clientX - shootX;
+    let dx = e.clientX - shooterX;
     let dy = e.clientY - (canvas.height - 30);
 
-    let angle = Math.atan2(dy,dx);
-
-    aimAngle = angle;
+    aimAngle = Math.atan2(dy, dx);
 });
 
 canvas.addEventListener("pointerup", ()=>{
@@ -303,8 +329,6 @@ canvas.addEventListener("pointerup", ()=>{
     shoot(aimAngle);
 });
 
-let aimAngle = -Math.PI/4;
-
 function update(){
 
     balls.forEach(ball=>{
@@ -313,16 +337,19 @@ function update(){
         ball.y += ball.vy;
 
         if(ball.x <= BALL_RADIUS){
+
             ball.x = BALL_RADIUS;
             ball.vx *= -1;
         }
 
         if(ball.x >= canvas.width - BALL_RADIUS){
+
             ball.x = canvas.width - BALL_RADIUS;
             ball.vx *= -1;
         }
 
         if(ball.y <= BALL_RADIUS){
+
             ball.y = BALL_RADIUS;
             ball.vy *= -1;
         }
@@ -335,7 +362,7 @@ function update(){
         }
 
         blocks.forEach(block=>{
-            reflect(ball,block);
+            reflect(ball, block);
         });
 
         pickups.forEach(p=>{
@@ -343,11 +370,15 @@ function update(){
             let dx = ball.x - p.x;
             let dy = ball.y - p.y;
 
-            if(Math.sqrt(dx*dx+dy*dy) < BALL_RADIUS + p.r){
+            if(Math.sqrt(dx*dx + dy*dy)
+                < BALL_RADIUS + p.r){
 
                 ballCount++;
 
-                pickups.splice(pickups.indexOf(p),1);
+                pickups.splice(
+                    pickups.indexOf(p),
+                    1
+                );
 
                 vibrate(20);
             }
@@ -363,15 +394,26 @@ function update(){
 
         shooting = false;
 
-        shootX = balls[0].x;
+        shooterX = balls[0].x;
 
         balls = [];
 
         level++;
 
-        moveRowsDown();
+        score += 5;
 
+        // faster over time
+        BALL_SPEED += 0.15;
+
+        // extra balls every 3 levels
+        if(level % 3 === 0){
+            ballCount += 2;
+        }
+
+        moveRowsDown();
         createRow();
+
+        updateUI();
     }
 }
 
@@ -382,13 +424,20 @@ function draw(){
     // aim line
     if(!shooting){
 
-        ctx.strokeStyle = "rgba(255,255,255,.3)";
+        ctx.strokeStyle =
+            "rgba(255,255,255,.3)";
+
         ctx.beginPath();
-        ctx.moveTo(shootX, canvas.height-30);
+
+        ctx.moveTo(
+            shooterX,
+            canvas.height - 30
+        );
 
         ctx.lineTo(
-            shootX + Math.cos(aimAngle)*120,
-            canvas.height-30 + Math.sin(aimAngle)*120
+            shooterX + Math.cos(aimAngle)*140,
+            canvas.height - 30 +
+            Math.sin(aimAngle)*140
         );
 
         ctx.stroke();
@@ -400,12 +449,17 @@ function draw(){
         ctx.fillStyle = b.color;
 
         ctx.beginPath();
-        ctx.roundRect(b.x,b.y,b.w,b.h,12);
+
+        ctx.roundRect(
+            b.x,b.y,b.w,b.h,12
+        );
+
         ctx.fill();
 
         ctx.fillStyle = "white";
         ctx.font = "20px Arial";
         ctx.textAlign = "center";
+
         ctx.fillText(
             b.hp,
             b.x + b.w/2,
@@ -419,7 +473,9 @@ function draw(){
         ctx.fillStyle = "#00e5ff";
 
         ctx.beginPath();
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.arc(
+            p.x,p.y,p.r,0,Math.PI*2
+        );
         ctx.fill();
     });
 
@@ -429,17 +485,32 @@ function draw(){
         ctx.fillStyle = "white";
 
         ctx.beginPath();
-        ctx.arc(ball.x,ball.y,BALL_RADIUS,0,Math.PI*2);
+
+        ctx.arc(
+            ball.x,
+            ball.y,
+            BALL_RADIUS,
+            0,
+            Math.PI*2
+        );
+
         ctx.fill();
     });
 
-    // shooter ball
+    // shooter
     if(!shooting){
 
-        ctx.fillStyle = "white";
-
         ctx.beginPath();
-        ctx.arc(shootX,canvas.height-30,BALL_RADIUS,0,Math.PI*2);
+
+        ctx.arc(
+            shooterX,
+            canvas.height - 30,
+            BALL_RADIUS,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fillStyle = "white";
         ctx.fill();
     }
 }
