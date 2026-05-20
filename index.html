@@ -1,71 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Ballz Ultimate</title>
 
 <style>
-html,body{
-    margin:0;
-    overflow:hidden;
-    background:#111;
-    font-family:Arial;
-    touch-action:none;
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #111;
+    font-family: Arial;
+    touch-action: none;
 }
 
-canvas{
-    display:block;
-    background:#111;
+canvas {
+    display: block;
+    background: #111;
 }
 
-#ui{
-    position:absolute;
-    top:10px;
-    width:100%;
-    text-align:center;
-    color:white;
-    z-index:5;
-    font-weight:bold;
+#ui {
+    position: absolute;
+    top: 10px;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-weight: bold;
 }
 
-#score{
-    font-size:22px;
+#menu, #gameOver {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
 }
 
-#high{
-    font-size:16px;
-    opacity:.8;
-}
+#gameOver { display: none; }
 
-#menu,
-#gameOver{
-    position:absolute;
-    inset:0;
-    background:rgba(0,0,0,.9);
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    color:white;
-    z-index:10;
-}
-
-#gameOver{
-    display:none;
-}
-
-h1{
-    font-size:55px;
-    margin:0;
-}
-
-button{
-    margin-top:20px;
-    padding:16px 40px;
-    border:none;
-    border-radius:14px;
-    font-size:22px;
+button {
+    padding: 15px 35px;
+    font-size: 20px;
+    border-radius: 12px;
+    border: none;
+    margin-top: 15px;
 }
 </style>
 </head>
@@ -73,8 +53,8 @@ button{
 <body>
 
 <div id="ui">
-    <div id="score">Score: 0</div>
-    <div id="high">High Score: 0</div>
+    Score: <span id="score">0</span> |
+    High: <span id="high">0</span>
 </div>
 
 <div id="menu">
@@ -85,312 +65,170 @@ button{
 <div id="gameOver">
     <h1>Game Over</h1>
     <div id="final"></div>
-    <button onclick="restartGame()">Restart</button>
+    <button onclick="restart()">Restart</button>
 </div>
 
-<canvas id="game"></canvas>
+<canvas id="c"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const c = document.getElementById("c");
+const x = c.getContext("2d");
 
 function resize(){
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
+    c.width = innerWidth;
+    c.height = innerHeight;
 }
 resize();
 addEventListener("resize", resize);
 
-const BALL_RADIUS = 6;
-
-let BALL_SPEED = 9;
-
+// GAME DATA
 let balls = [];
 let blocks = [];
-let pickups = [];
 
 let score = 0;
-let highScore = localStorage.getItem("ballzHigh") || 0;
+let high = localStorage.getItem("high") || 0;
 
 let level = 1;
-let ballCount = 15;
+let ballCount = 10;
+let speed = 6;
 
 let shooting = false;
-let aiming = false;
+let aim = -Math.PI/4;
+let shooterX = c.width/2;
 
-let shooterX = canvas.width / 2;
-let aimAngle = -Math.PI / 4;
+document.getElementById("high").innerText = high;
 
-document.getElementById("high").innerText =
-    "High Score: " + highScore;
-
-function vibrate(ms){
-    if(navigator.vibrate){
-        navigator.vibrate(ms);
-    }
-}
-
-function randomColor(){
-    const colors = [
-        "#ff595e","#ffca3a","#8ac926",
-        "#1982c4","#6a4c93","#ff924c"
-    ];
-    return colors[Math.floor(Math.random()*colors.length)];
-}
-
+// CREATE LEVEL
 function createRow(){
+    blocks = [];
 
-    let cols = Math.floor(canvas.width / 65);
+    let cols = Math.floor(c.width / 70);
 
     for(let i=0;i<cols;i++){
-
-        if(Math.random() < 0.75){
-
+        if(Math.random() < 0.7){
             blocks.push({
-                x:i*65+10,
-                y:80,
+                x:i*70 + 15,
+                y:100,
                 w:55,
                 h:55,
-                hp:level,
-                color:randomColor()
-            });
-
-        }else if(Math.random() < 0.25){
-
-            pickups.push({
-                x:i*65+37,
-                y:107,
-                r:8
+                hp:level
             });
         }
     }
 }
 
-function moveRowsDown(){
-
-    blocks.forEach(b=> b.y += 65);
-    pickups.forEach(p=> p.y += 65);
-
-    for(let b of blocks){
-
-        if(b.y + b.h >= canvas.height - 80){
-
-            gameOver();
-        }
-    }
-}
-
-function updateUI(){
-
-    document.getElementById("score").innerText =
-        "Score: " + score;
-
-    document.getElementById("high").innerText =
-        "High Score: " + highScore;
-}
-
+// START
 function startGame(){
-
     document.getElementById("menu").style.display = "none";
 
     score = 0;
     level = 1;
-    ballCount = 15;
+    ballCount = 10;
+    speed = 6;
 
-    BALL_SPEED = 9;
-
-    balls = [];
-    blocks = [];
-    pickups = [];
+    shooterX = c.width/2;
 
     createRow();
-
     updateUI();
 }
 
-function restartGame(){
-
+// RESTART
+function restart(){
     document.getElementById("gameOver").style.display = "none";
-
     startGame();
 }
 
-function gameOver(){
-
-    if(score > highScore){
-
-        highScore = score;
-
-        localStorage.setItem(
-            "ballzHigh",
-            highScore
-        );
-    }
-
-    updateUI();
-
-    document.getElementById("final").innerHTML =
-        "Score: " + score;
-
-    document.getElementById("gameOver").style.display = "flex";
+// UPDATE UI
+function updateUI(){
+    document.getElementById("score").innerText = score;
+    document.getElementById("high").innerText = high;
 }
 
-function shoot(angle){
-
+// SHOOT
+function shoot(){
     if(shooting) return;
 
     shooting = true;
+    balls = [];
 
     for(let i=0;i<ballCount;i++){
-
         setTimeout(()=>{
-
             balls.push({
-                x:shooterX,
-                y:canvas.height - 30,
-                vx:Math.cos(angle) * BALL_SPEED,
-                vy:Math.sin(angle) * BALL_SPEED,
-                returned:false
+                x: shooterX,
+                y: c.height-40,
+                vx: Math.cos(aim)*speed,
+                vy: Math.sin(aim)*speed,
+                back:false
             });
-
-        }, i * 40);
-
+        }, i*60);
     }
 }
 
-function reflect(ball, block){
+// COLLISION (REAL BOUNCE)
+function collide(ball, block){
+    let cx = Math.max(block.x, Math.min(ball.x, block.x+block.w));
+    let cy = Math.max(block.y, Math.min(ball.y, block.y+block.h));
 
-    let closestX = Math.max(
-        block.x,
-        Math.min(ball.x, block.x + block.w)
-    );
-
-    let closestY = Math.max(
-        block.y,
-        Math.min(ball.y, block.y + block.h)
-    );
-
-    let dx = ball.x - closestX;
-    let dy = ball.y - closestY;
+    let dx = ball.x - cx;
+    let dy = ball.y - cy;
 
     let dist = Math.sqrt(dx*dx + dy*dy);
 
-    if(dist < BALL_RADIUS){
+    if(dist < 6){
+        let nx = dx/dist;
+        let ny = dy/dist;
 
-        let nx = dx / dist;
-        let ny = dy / dist;
+        let dot = ball.vx*nx + ball.vy*ny;
 
-        let dot = ball.vx * nx + ball.vy * ny;
-
-        ball.vx -= 2 * dot * nx;
-        ball.vy -= 2 * dot * ny;
+        ball.vx -= 2*dot*nx;
+        ball.vy -= 2*dot*ny;
 
         block.hp--;
 
-        vibrate(5);
-
         if(block.hp <= 0){
-
-            score += 1;
-
-            blocks.splice(
-                blocks.indexOf(block),
-                1
-            );
-
-            updateUI();
+            blocks.splice(blocks.indexOf(block),1);
         }
     }
 }
 
-canvas.addEventListener("pointerdown", ()=>{
+// INPUT
+addEventListener("pointermove", e=>{
     if(shooting) return;
-    aiming = true;
+
+    aim = Math.atan2(
+        e.clientY - (c.height-40),
+        e.clientX - shooterX
+    );
 });
 
-canvas.addEventListener("pointermove", e=>{
-
-    if(!aiming || shooting) return;
-
-    let dx = e.clientX - shooterX;
-    let dy = e.clientY - (canvas.height - 30);
-
-    aimAngle = Math.atan2(dy, dx);
+addEventListener("pointerdown", ()=>{
+    if(!shooting) shoot();
 });
 
-canvas.addEventListener("pointerup", ()=>{
-
-    if(!aiming || shooting) return;
-
-    aiming = false;
-
-    if(aimAngle > -0.1) return;
-
-    shoot(aimAngle);
-});
-
+// UPDATE GAME
 function update(){
 
-    balls.forEach(ball=>{
+    balls.forEach(b=>{
 
-        ball.x += ball.vx;
-        ball.y += ball.vy;
+        b.x += b.vx;
+        b.y += b.vy;
 
-        if(ball.x <= BALL_RADIUS){
+        // walls
+        if(b.x < 0 || b.x > c.width) b.vx *= -1;
+        if(b.y < 0) b.vy *= -1;
 
-            ball.x = BALL_RADIUS;
-            ball.vx *= -1;
+        // bottom
+        if(b.y > c.height-40){
+            b.back = true;
         }
 
-        if(ball.x >= canvas.width - BALL_RADIUS){
-
-            ball.x = canvas.width - BALL_RADIUS;
-            ball.vx *= -1;
-        }
-
-        if(ball.y <= BALL_RADIUS){
-
-            ball.y = BALL_RADIUS;
-            ball.vy *= -1;
-        }
-
-        if(ball.y >= canvas.height - 30){
-
-            ball.returned = true;
-            ball.vx = 0;
-            ball.vy = 0;
-        }
-
-        blocks.forEach(block=>{
-            reflect(ball, block);
+        blocks.forEach(bl=>{
+            collide(b,bl);
         });
-
-        pickups.forEach(p=>{
-
-            let dx = ball.x - p.x;
-            let dy = ball.y - p.y;
-
-            if(Math.sqrt(dx*dx + dy*dy)
-                < BALL_RADIUS + p.r){
-
-                ballCount++;
-
-                pickups.splice(
-                    pickups.indexOf(p),
-                    1
-                );
-
-                vibrate(20);
-            }
-        });
-
     });
 
-    if(
-        shooting &&
-        balls.length &&
-        balls.every(b=>b.returned)
-    ){
+    // ROUND DONE
+    if(shooting && balls.length && balls.every(b=>b.back)){
 
         shooting = false;
 
@@ -400,129 +238,76 @@ function update(){
 
         level++;
 
-        
+        // ⭐ SCORE ONCE PER TURN (IMPORTANT)
+        score++;
 
-        // faster over time
-        BALL_SPEED += 0.15;
+        // faster each level
+        speed += 0.3;
 
-        // extra balls every 3 levels
+        // more balls
         if(level % 3 === 0){
-            ballCount += 2;
+            ballCount++;
         }
 
-        moveRowsDown();
         createRow();
-
         updateUI();
+
+        // high score
+        if(score > high){
+            high = score;
+            localStorage.setItem("high", high);
+        }
     }
 }
 
+// DRAW
 function draw(){
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    x.clearRect(0,0,c.width,c.height);
 
     // aim line
     if(!shooting){
-
-        ctx.strokeStyle =
-            "rgba(255,255,255,.3)";
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            shooterX,
-            canvas.height - 30
+        x.strokeStyle = "rgba(255,255,255,0.3)";
+        x.beginPath();
+        x.moveTo(shooterX, c.height-40);
+        x.lineTo(
+            shooterX + Math.cos(aim)*120,
+            c.height-40 + Math.sin(aim)*120
         );
-
-        ctx.lineTo(
-            shooterX + Math.cos(aimAngle)*140,
-            canvas.height - 30 +
-            Math.sin(aimAngle)*140
-        );
-
-        ctx.stroke();
+        x.stroke();
     }
 
     // blocks
     blocks.forEach(b=>{
+        x.fillStyle = "red";
+        x.fillRect(b.x,b.y,b.w,b.h);
 
-        ctx.fillStyle = b.color;
-
-        ctx.beginPath();
-
-        ctx.roundRect(
-            b.x,b.y,b.w,b.h,12
-        );
-
-        ctx.fill();
-
-        ctx.fillStyle = "white";
-        ctx.font = "20px Arial";
-        ctx.textAlign = "center";
-
-        ctx.fillText(
-            b.hp,
-            b.x + b.w/2,
-            b.y + 34
-        );
-    });
-
-    // pickups
-    pickups.forEach(p=>{
-
-        ctx.fillStyle = "#00e5ff";
-
-        ctx.beginPath();
-        ctx.arc(
-            p.x,p.y,p.r,0,Math.PI*2
-        );
-        ctx.fill();
+        x.fillStyle = "white";
+        x.fillText(b.hp,b.x+20,b.y+30);
     });
 
     // balls
-    balls.forEach(ball=>{
-
-        ctx.fillStyle = "white";
-
-        ctx.beginPath();
-
-        ctx.arc(
-            ball.x,
-            ball.y,
-            BALL_RADIUS,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
+    balls.forEach(b=>{
+        x.beginPath();
+        x.arc(b.x,b.y,6,0,Math.PI*2);
+        x.fillStyle = "white";
+        x.fill();
     });
 
     // shooter
     if(!shooting){
-
-        ctx.beginPath();
-
-        ctx.arc(
-            shooterX,
-            canvas.height - 30,
-            BALL_RADIUS,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fillStyle = "white";
-        ctx.fill();
+        x.beginPath();
+        x.arc(shooterX,c.height-40,6,0,Math.PI*2);
+        x.fillStyle="white";
+        x.fill();
     }
 }
 
+// LOOP
 function loop(){
-
     update();
     draw();
-
     requestAnimationFrame(loop);
 }
-
 loop();
 </script>
 
