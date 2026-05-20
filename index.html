@@ -2,60 +2,23 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Ballz Collect</title>
+<title>Ballz Fix</title>
 
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: #111;
-    font-family: Arial;
-    touch-action: none;
-}
-
-canvas {
-    display: block;
-}
-
-#ui {
-    position: absolute;
-    top: 10px;
-    width: 100%;
-    text-align: center;
-    color: white;
-    font-size: 22px;
-    font-weight: bold;
-}
-
-#menu {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.9);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: white;
-}
-
-button {
-    padding: 15px 40px;
-    font-size: 20px;
-    border: none;
-    border-radius: 12px;
-    margin-top: 15px;
-}
+body{margin:0;overflow:hidden;background:#111;font-family:Arial;touch-action:none;}
+canvas{display:block;background:#111;}
+#ui{position:absolute;top:10px;width:100%;text-align:center;color:white;font-weight:bold;}
+#menu{position:absolute;inset:0;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;}
+button{padding:15px 40px;font-size:20px;border-radius:12px;border:none;margin-top:15px;}
 </style>
 </head>
 
 <body>
 
-<div id="ui">
-Score: <span id="score">0</span>
-</div>
+<div id="ui">Score: <span id="score">0</span></div>
 
 <div id="menu">
-<h1>BALLZ COLLECT</h1>
+<h1>BALLZ</h1>
 <button onclick="start()">PLAY</button>
 </div>
 
@@ -63,98 +26,156 @@ Score: <span id="score">0</span>
 
 <script>
 
-const c = document.getElementById("c");
-const x = c.getContext("2d");
+const c=document.getElementById("c");
+const x=c.getContext("2d");
 
-function resize(){
-    c.width = innerWidth;
-    c.height = innerHeight;
-}
-resize();
-addEventListener("resize", resize);
+function resize(){c.width=innerWidth;c.height=innerHeight;}
+resize();addEventListener("resize",resize);
 
-/* ---------------- DATA ---------------- */
+/* ---------------- GAME ---------------- */
 
-let ball = null;
-let score = 0;
-let speed = 4;
+let balls=[];
+let blocks=[];
+let score=0;
+let level=1;
+let shooting=false;
+let angle=-Math.PI/4;
+let shooterX=c.width/2;
 
-/* ---------------- BALL ---------------- */
+/* ---------------- CREATE LEVEL ---------------- */
 
-function spawnBall(){
-    ball = {
-        x: Math.random() * c.width,
-        y: Math.random() * c.height,
-        vx: (Math.random() > 0.5 ? 1 : -1) * speed,
-        vy: (Math.random() > 0.5 ? 1 : -1) * speed,
-        r: 20
-    };
+function createLevel(){
+    blocks=[];
+    let cols=Math.floor(c.width/70);
+
+    for(let i=0;i<cols;i++){
+        if(Math.random()<0.7){
+            blocks.push({
+                x:i*70+15,
+                y:100,
+                w:55,
+                h:55,
+                hp:level
+            });
+        }
+    }
 }
 
 /* ---------------- START ---------------- */
 
 function start(){
-    document.getElementById("menu").style.display = "none";
-    score = 0;
-    speed = 4;
-    spawnBall();
+    document.getElementById("menu").style.display="none";
+
+    score=0;
+    level=1;
+    shooterX=c.width/2;
+
+    createLevel();
     updateUI();
 }
 
 /* ---------------- UI ---------------- */
 
 function updateUI(){
-    document.getElementById("score").innerText = score;
+    document.getElementById("score").innerText=score;
 }
 
-/* ---------------- TOUCH ---------------- */
+/* ---------------- SHOOT ONE STREAM ---------------- */
 
-addEventListener("pointerdown", e=>{
+function shoot(){
 
-    if(!ball) return;
+    if(shooting) return;
+    shooting=true;
+    balls=[];
 
-    let dx = e.clientX - ball.x;
-    let dy = e.clientY - ball.y;
-
-    let dist = Math.sqrt(dx*dx + dy*dy);
-
-    if(dist < ball.r){
-
-        // YOU COLLECTED IT
-        score++;
-        updateUI();
-
-        // faster each collect
-        speed += 0.3;
-
-        vibrate([20,40,20]);
-
-        spawnBall();
+    for(let i=0;i<12;i++){
+        setTimeout(()=>{
+            balls.push({
+                x:shooterX,
+                y:c.height-40,
+                vx:Math.cos(angle)*7,
+                vy:Math.sin(angle)*7,
+                back:false
+            });
+        }, i*60);
     }
+}
+
+/* ---------------- COLLISION ---------------- */
+
+function hit(ball,block){
+
+    let cx=Math.max(block.x,Math.min(ball.x,block.x+block.w));
+    let cy=Math.max(block.y,Math.min(ball.y,block.y+block.h));
+
+    let dx=ball.x-cx;
+    let dy=ball.y-cy;
+
+    let d=Math.sqrt(dx*dx+dy*dy);
+
+    if(d<6){
+
+        let nx=dx/d;
+        let ny=dy/d;
+
+        let dot=ball.vx*nx+ball.vy*ny;
+
+        ball.vx-=2*dot*nx;
+        ball.vy-=2*dot*ny;
+
+        block.hp--;
+
+        if(block.hp<=0){
+            blocks.splice(blocks.indexOf(block),1);
+        }
+    }
+}
+
+/* ---------------- INPUT ---------------- */
+
+addEventListener("pointermove",e=>{
+    if(shooting) return;
+
+    angle=Math.atan2(
+        e.clientY-(c.height-40),
+        e.clientX-shooterX
+    );
 });
 
-/* ---------------- VIBRATION ---------------- */
-
-function vibrate(p){
-    if(navigator.vibrate) navigator.vibrate(p);
-}
+addEventListener("pointerdown",()=>shoot());
 
 /* ---------------- UPDATE ---------------- */
 
 function update(){
 
-    if(!ball) return;
+    balls.forEach(b=>{
 
-    ball.x += ball.vx;
-    ball.y += ball.vy;
+        b.x+=b.vx;
+        b.y+=b.vy;
 
-    // bounce walls
-    if(ball.x < ball.r || ball.x > c.width - ball.r){
-        ball.vx *= -1;
-    }
+        if(b.x<0||b.x>c.width)b.vx*=-1;
+        if(b.y<0)b.vy*=-1;
 
-    if(ball.y < ball.r || ball.y > c.height - ball.r){
-        ball.vy *= -1;
+        if(b.y>c.height-40)b.back=true;
+
+        blocks.forEach(bl=>hit(b,bl));
+    });
+
+    /* ROUND FINISHED */
+    if(shooting && balls.length && balls.every(b=>b.back)){
+
+        shooting=false;
+
+        shooterX=balls[0].x;
+        balls=[];
+
+        level++;
+
+        /* ⭐ ONLY ONE POINT PER TURN */
+        score++;
+
+        createLevel();
+        updateUI();
     }
 }
 
@@ -164,18 +185,36 @@ function draw(){
 
     x.clearRect(0,0,c.width,c.height);
 
-    if(ball){
-
+    if(!shooting){
+        x.strokeStyle="rgba(255,255,255,0.3)";
         x.beginPath();
-        x.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-        x.fillStyle = "white";
-        x.fill();
-
-        // glow effect
-        x.beginPath();
-        x.arc(ball.x,ball.y,ball.r+10,0,Math.PI*2);
-        x.strokeStyle = "rgba(255,255,255,0.2)";
+        x.moveTo(shooterX,c.height-40);
+        x.lineTo(
+            shooterX+Math.cos(angle)*120,
+            c.height-40+Math.sin(angle)*120
+        );
         x.stroke();
+    }
+
+    blocks.forEach(b=>{
+        x.fillStyle="red";
+        x.fillRect(b.x,b.y,b.w,b.h);
+
+        x.fillStyle="white";
+        x.fillText(b.hp,b.x+20,b.y+30);
+    });
+
+    balls.forEach(b=>{
+        x.beginPath();
+        x.arc(b.x,b.y,5,0,Math.PI*2);
+        x.fillStyle="white";
+        x.fill();
+    });
+
+    if(!shooting){
+        x.beginPath();
+        x.arc(shooterX,c.height-40,5,0,Math.PI*2);
+        x.fill();
     }
 }
 
@@ -192,4 +231,3 @@ loop();
 
 </body>
 </html>
-
