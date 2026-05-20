@@ -285,18 +285,20 @@ function reflect(ball, block){
         ball.vx -= 2 * dot * nx;
         ball.vy -= 2 * dot * ny;
 
-        // LOWER BLOCK NUMBER
         block.hp--;
 
         vibrate(5);
 
-        // REMOVE BLOCK
         if(block.hp <= 0){
+
+            score += 1;
 
             blocks.splice(
                 blocks.indexOf(block),
                 1
             );
+
+            updateUI();
         }
     }
 }
