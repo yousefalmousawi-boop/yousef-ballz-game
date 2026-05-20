@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Ballz Collect</title>
+<title>One Ball Collect</title>
 
 <style>
 body {
@@ -55,8 +55,8 @@ Score: <span id="score">0</span>
 </div>
 
 <div id="menu">
-<h1>BALLZ COLLECT</h1>
-<button onclick="start()">PLAY</button>
+<h1>ONE BALL</h1>
+<button onclick="startGame()">PLAY</button>
 </div>
 
 <canvas id="c"></canvas>
@@ -73,30 +73,26 @@ function resize(){
 resize();
 addEventListener("resize", resize);
 
-/* ---------------- DATA ---------------- */
+/* ---------------- GAME DATA ---------------- */
 
 let ball = null;
 let score = 0;
 let speed = 4;
 
-/* ---------------- BALL ---------------- */
+/* ---------------- VIBRATION ---------------- */
 
-function spawnBall(){
-    ball = {
-        x: Math.random() * c.width,
-        y: Math.random() * c.height,
-        vx: (Math.random() > 0.5 ? 1 : -1) * speed,
-        vy: (Math.random() > 0.5 ? 1 : -1) * speed,
-        r: 20
-    };
+function vibrate(p){
+    if(navigator.vibrate) navigator.vibrate(p);
 }
 
 /* ---------------- START ---------------- */
 
-function start(){
+function startGame(){
     document.getElementById("menu").style.display = "none";
+
     score = 0;
     speed = 4;
+
     spawnBall();
     updateUI();
 }
@@ -105,6 +101,19 @@ function start(){
 
 function updateUI(){
     document.getElementById("score").innerText = score;
+}
+
+/* ---------------- SPAWN SINGLE BALL ---------------- */
+
+function spawnBall(){
+
+    ball = {
+        x: Math.random() * (c.width - 40) + 20,
+        y: Math.random() * (c.height - 40) + 20,
+        vx: (Math.random() > 0.5 ? 1 : -1) * speed,
+        vy: (Math.random() > 0.5 ? 1 : -1) * speed,
+        r: 20
+    };
 }
 
 /* ---------------- TOUCH ---------------- */
@@ -120,24 +129,18 @@ addEventListener("pointerdown", e=>{
 
     if(dist < ball.r){
 
-        // YOU COLLECTED IT
-        score++;
+        // SCORE ONLY ONCE PER TOUCH
+        score += 1;
         updateUI();
 
-        // faster each collect
-        speed += 0.3;
+        // SPEED UP GAME
+        speed += 0.2;
 
         vibrate([20,40,20]);
 
-        spawnBall();
+        spawnBall(); // replace old ball (still ONLY ONE exists)
     }
 });
-
-/* ---------------- VIBRATION ---------------- */
-
-function vibrate(p){
-    if(navigator.vibrate) navigator.vibrate(p);
-}
 
 /* ---------------- UPDATE ---------------- */
 
@@ -167,13 +170,13 @@ function draw(){
     if(ball){
 
         x.beginPath();
-        x.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+        x.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
         x.fillStyle = "white";
         x.fill();
 
-        // glow effect
+        // glow
         x.beginPath();
-        x.arc(ball.x,ball.y,ball.r+10,0,Math.PI*2);
+        x.arc(ball.x, ball.y, ball.r + 10, 0, Math.PI*2);
         x.strokeStyle = "rgba(255,255,255,0.2)";
         x.stroke();
     }
